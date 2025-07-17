@@ -77,7 +77,7 @@ export default function LoginPage() {
     },
   });
 
-  // Connexion classique (email + mot de passe)
+  // Connexion classique (email + mot de passe) avec récupération et stockage du token
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
@@ -91,10 +91,23 @@ export default function LoginPage() {
         }),
       });
       const result = await res.json();
+
       if (res.ok) {
-        toast.success("Connexion réussie");
-        // gérer token ou cookie ici selon backend
-        router.push("/");
+        const { token } = result;  // Assure-toi que ton backend renvoie { data: { token, ... } }
+
+        if (token) {
+          // Stocker le token : localStorage si "rememberMe", sinon sessionStorage
+          if (data.rememberMe) {
+            localStorage.setItem("token", token);
+          } else {
+            sessionStorage.setItem("token", token);
+          }
+
+          toast.success("Connexion réussie");
+          router.push("/profile"); // Ou dashboard selon ta logique
+        } else {
+          toast.error("Token manquant dans la réponse");
+        }
       } else {
         toast.error(result.message || "Email ou mot de passe incorrect");
       }
@@ -105,6 +118,7 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
 
   // Connexion Google via Firebase + backend
   const handleGoogleSignIn = async () => {
@@ -123,7 +137,7 @@ export default function LoginPage() {
 
       if (res.ok) {
         toast.success("Connexion Google réussie");
-        router.push("/admin/dashboard");
+        router.push("/");
       } else {
         toast.error(data.message || "Erreur lors de la connexion Google");
       }

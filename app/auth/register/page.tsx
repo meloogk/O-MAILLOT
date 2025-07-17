@@ -31,7 +31,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// IMPORTANT : change cette URL pour celle de ton backend Node.js
+// IMPORTANT : URL  backend Node.js
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ;
 
 const registerSchema = z
@@ -127,7 +127,7 @@ export default function RegisterPage() {
 
       if (res.ok) {
         toast.success("Inscription / Connexion Google réussie");
-        router.push("/");
+        router.push("/auth/login");
       } else {
         toast.error(data.message || "Erreur lors de la connexion Google");
       }
@@ -185,7 +185,7 @@ const verifyCodeAndSignIn = async () => {
 
     if (res.ok) {
       toast.success("Connexion par téléphone réussie");
-      router.push("/");
+      router.push("/auth/login");
     } else {
       toast.error(data.message || "Erreur lors de la connexion");
     }

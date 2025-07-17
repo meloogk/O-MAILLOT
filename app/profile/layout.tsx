@@ -1,80 +1,145 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { 
+import {
   User,
   Heart,
   ShoppingBag,
   Settings,
   LogOut,
-  Trophy
+  Trophy,
 } from "lucide-react";
-import { useAuth } from "@/lib/store/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface ProfileLayoutProps {
-  children: ReactNode;
+  readonly children: ReactNode;
+}
+
+interface Utilisateur {
+  nom: string;
+  email: string;
+  photo?: string;
 }
 
 export default function ProfileLayout({ children }: ProfileLayoutProps) {
-  const { user, logout } = useAuth();
+  const [user, setUser] = useState<Utilisateur | null>(null);
+  const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
+  const getToken = () =>
+    localStorage.getItem("token") || sessionStorage.getItem("token") || null;
+
+  const fetchUser = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      toast.error("Vous devez être connecté");
+      router.push("/auth/login");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/profil_infos`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Erreur lors de la récupération du profil");
+
+      const userData = await res.json();
+      setUser({
+        nom: userData.nom,
+        email: userData.email,
+        photo: userData.photo || "/avatars/01.png",
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(`Session expirée. Veuillez vous reconnecter. (${err.message})`);
+      } else {
+        toast.error("Session expirée. Veuillez vous reconnecter.");
+      }
+      router.push("/auth/login");
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
   const handleLogout = () => {
-    logout();
-    router.push('/auth/login');
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("token");
+    setUser(null);
+    router.push("/auth/login");
   };
 
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
   const menuItems = [
-    {
-      title: "Mon Profil",
-      href: "/profile",
-      icon: <User className="h-5 w-5" />
-    },
+    { title: "Mon Profil", href: "/profile", icon: <User className="h-5 w-5" /> },
     {
       title: "Mes Commandes",
       href: "/profile/orders",
-      icon: <ShoppingBag className="h-5 w-5" />
+      icon: <ShoppingBag className="h-5 w-5" />,
     },
     {
       title: "Mes Favoris",
       href: "/profile/favorites",
-      icon: <Heart className="h-5 w-5" />
+      icon: <Heart className="h-5 w-5" />,
     },
     {
       title: "Mes Récompenses",
       href: "/profile/rewards",
-      icon: <Trophy className="h-5 w-5" />
+      icon: <Trophy className="h-5 w-5" />,
     },
     {
       title: "Paramètres",
       href: "/profile/settings",
-      icon: <Settings className="h-5 w-5" />
-    }
+      icon: <Settings className="h-5 w-5" />,
+    },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-500">
+        Chargement du profil...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-500">
+        Aucun utilisateur connecté.
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Sidebar */}
-          <div className="md:col-span-1">
+          <aside className="md:col-span-1">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center space-x-4 mb-6">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src="/avatars/01.png" alt={user?.name} />
-                  <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={user.photo} alt={user.nom} />
+                  <AvatarFallback>{user.nom.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <h2 className="text-lg font-semibold">{user?.name}</h2>
+                  <h2 className="text-lg font-semibold">{user.nom}</h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {user?.email}
+                    {user.email}
                   </p>
                 </div>
               </div>
@@ -106,14 +171,14 @@ export default function ProfileLayout({ children }: ProfileLayoutProps) {
                 </Button>
               </nav>
             </div>
-          </div>
+          </aside>
 
           {/* Main content */}
-          <div className="md:col-span-3">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <main className="md:col-span-3">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               {children}
             </div>
-          </div>
+          </main>
         </div>
       </div>
     </div>
